@@ -1,5 +1,4 @@
-```python
-readme_content = """# Audio Warehouse Engine
+"""# Audio Warehouse Engine
 
 An autonomous, multi-agent AI techno music production system that models digital signal processing (DSP) and track arrangement using a modern data warehouse metaphor (Medallion Architecture). Powered by LangGraph, Pyo, and Librosa, the system treats electronic music composition as an incremental, deterministic ELT pipeline.
 
