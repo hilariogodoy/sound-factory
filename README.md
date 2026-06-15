@@ -12,10 +12,7 @@ By treating sound design, sequencing, and mixing as decoupled data transformatio
 
 
 
-```text
-File successfully written to: audio-warehouse-engine/README.md
-
-```text
+```
        +-------------------------------------------------------+
        |                  User CLI Intent                      |
        +-------------------------------------------------------+
