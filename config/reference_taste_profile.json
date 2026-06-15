@@ -1,0 +1,28 @@
+{
+  "target_style": "hypnotic_underground_techno",
+  "metrics": {
+    "tempo_bpm": {
+      "min_threshold": 130.0,
+      "max_threshold": 138.0,
+      "strict": true
+    },
+    "spectral_centroid_mean": {
+      "comment": "Tracks higher frequency brightness to prevent piercing high-end mix fatigue",
+      "min_threshold": 1200.0,
+      "max_threshold": 2400.0,
+      "strict": false
+    },
+    "rms_energy_variance": {
+      "comment": "Measures loudness flux. Low variance means a driving, consistent hypnotic wall of sound",
+      "min_threshold": 0.01,
+      "max_threshold": 0.08,
+      "strict": true
+    },
+    "zero_crossing_rate_mean": {
+      "comment": "Detects high-frequency noise elements typical of classic 909 open hi-hat patterns",
+      "min_threshold": 0.04,
+      "max_threshold": 0.12,
+      "strict": false
+    }
+  }
+}
