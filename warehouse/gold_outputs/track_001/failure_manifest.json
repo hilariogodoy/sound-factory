@@ -2,7 +2,9 @@
   "track_id": "track_001",
   "status": "failed",
   "iterations_count": 3,
-  "compilation_errors": [],
+  "compilation_errors": [
+    "Pyo not available: No module named 'pyo'"
+  ],
   "curator_report": {
     "approved": false,
     "score": 0.4,

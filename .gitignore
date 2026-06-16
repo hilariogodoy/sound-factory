@@ -11,6 +11,7 @@ ENV/
 config/llm_config.yaml (if storing actual live production keys)
 
 # Audio outputs and warehouse data to prevent repo bloat
+*.wav
 audio-warehouse-engine/warehouse/gold_outputs/**/*.wav
 audio-warehouse-engine/warehouse/silver_loops/**/*.wav
 audio-warehouse-engine/warehouse/bronze_patches/**/*.wav
