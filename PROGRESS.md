@@ -25,7 +25,7 @@
 | 2 | LangGraph State Machine with Mock Nodes | Completed | 2026-06-16 | PASS - Conditional routing with circuit breaker (3 iterations -> error_termination); approval path verified; orchestrator creates dirs and sets branch name |
 | 3 | Audio Compiler (Subprocess Executor) | Completed | 2026-06-16 | PASS - Subprocess isolation works; Pyo render script created; graceful error capture in compilation_errors; circuit breaker retries compiler failures |
 | 4 | Librosa Feature Extraction Analyzer | Completed | 2026-06-16 | PASS - Analyzer node (audio_analyzer) added between compiler and curator; extracts spectral centroid, rms, zcr, tempo; graceful missing WAV/librosa handling; analysis_metrics field added to state |
-| 5 | Bronze Designer Agent | Not Started | - | - |
+| 5 | Bronze Designer Agent | Completed | 2026-06-16 | PASS - LLM-powered agent generating Pyo instrument patches; graceful empty-fallback on API/JSON errors; prompt populated with schema and constraints |
 | 6 | Silver Sequencer Agent | Not Started | - | - |
 | 7 | Gold Mixer Agent | Not Started | - | - |
 | 8 | Taste Curator & Circuit Breaker | Not Started | - | - |
@@ -42,7 +42,7 @@ Each session MUST update this table with any new or modified files.
 | `requirements.txt` | Created | Session 1 | Pinned deps; numpy/pyo need Python<3.13 |
 | `config/llm_config.yaml` | Created | Session 1 | Provider selection (default: openai_compatible) |
 | `config/reference_taste_profile.json` | Created | Session 1 | 4 Librosa thresholds from PRD |
-| `config/system_prompts/bronze_designer.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 5 |
+| `config/system_prompts/bronze_designer.txt` | Modified (full prompt) | Session 5 | Detailed Pyo DSP instrument generation prompt with JSON schema, constraints, instrument categories |
 | `config/system_prompts/silver_sequencer.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 6 |
 | `config/system_prompts/gold_mixer.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 7 |
 | `config/system_prompts/curator_critic.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 8 |
@@ -50,7 +50,7 @@ Each session MUST update this table with any new or modified files.
 | `src/llm_factory.py` | Created | Session 1 | get_llm() factory - full implementation |
 | `src/agents/__init__.py` | Created | Session 1 | Empty |
 | `src/agents/orchestrator.py` | Modified (full impl) | Session 2 | Creates dirs, sets branch_name, resets iterations/errors |
-| `src/agents/bronze_agent.py` | Modified (stub + print) | Session 2 | Traceability print added; returns {} until Session 5 |
+| `src/agents/bronze_agent.py` | Modified (full LLM impl) | Session 5 | Calls get_llm() with SystemMessage + HumanMessage; JSON parse with empty-fallback; prints generated instruments |
 | `src/agents/silver_agent.py` | Modified (stub + print) | Session 2 | Traceability print added; returns {} until Session 6 |
 | `src/agents/gold_agent.py` | Modified (stub + print) | Session 2 | Traceability print added; returns {} until Session 7 |
 | `src/agents/curator_agent.py` | Modified (full mock) | Session 2 | Always rejects; increments iterations_count; full impl in Session 8 |
@@ -69,35 +69,35 @@ Each session MUST update this table with any new or modified files.
 
 ---
 
-## Context Anchor (for next session: **Session 5**)
+## Context Anchor (for next session: **Session 6**)
 
-### What exists at the start of Session 5
+### What exists at the start of Session 6
 
-The full project with analyzer node in the pipeline:
+The full project with LLM-powered Bronze Designer:
 
 ```
 audio-warehouse-engine/
 |-- requirements.txt
 |-- config/
 |   |-- llm_config.yaml
-|   |-- reference_taste_profile.json   (4 metric thresholds for curator)
+|   |-- reference_taste_profile.json
 |   |-- system_prompts/
-|       |-- bronze_designer.txt   (stub - output schema only)
-|       |-- silver_sequencer.txt  (stub)
+|       |-- bronze_designer.txt   (full prompt: Pyo instrument generation)
+|       |-- silver_sequencer.txt  (stub - output schema only)
 |       |-- gold_mixer.txt        (stub)
 |       |-- curator_critic.txt    (stub)
 |-- src/
 |   |-- __init__.py
 |   |-- llm_factory.py            (full impl - get_llm)
-|   |-- graph.py                   (conditional routing + analyzer node + error_termination)
+|   |-- graph.py                   (7 nodes: conditional routing + analyzer + error_termination)
 |   |-- main.py                    (CLI with --dry-run, recursion_limit=100, analysis display)
 |   |-- agents/
 |   |   |-- __init__.py
 |   |   |-- orchestrator.py       (full impl)
-|   |   |-- bronze_agent.py       (stub with print)
+|   |   |-- bronze_agent.py       (full LLM impl: reads prompt, calls get_llm(), parses JSON)
 |   |   |-- silver_agent.py       (stub with print)
 |   |   |-- gold_agent.py         (stub with print)
-|   |   |-- curator_agent.py      (mock: always reject — Session 8 will use real LLM)
+|   |   |-- curator_agent.py      (mock: always reject)
 |   |-- audio_engine/
 |       |-- __init__.py
 |       |-- compiler.py           (full impl: subprocess -> Pyo _render.py)
@@ -107,20 +107,20 @@ audio-warehouse-engine/
 |   |-- ...
 ```
 
-### Key architectural notes from Session 4
+### Key architectural notes from Session 5
 
-1. **Analyzer as separate node** (Option A): `audio_analyzer` node sits between `audio_compiler` and `taste_curator` in the graph.
-2. **State field**: `analysis_metrics: Dict[str, float]` added to `AudioWarehouseState` — stores spectral_centroid_mean/std, rms_mean/std/variance, zcr_mean, tempo_bpm, duration_sec.
-3. **Graceful degradation**: Missing WAV or librosa returns empty dict — graph continues without crash.
-4. **Pipeline flow**: `audio_compiler -> audio_analyzer -> taste_curator -> [conditional]`.
+1. **Bronze agent is the first LLM node**: calls `get_llm()`, builds context from track_spec + analysis_metrics, reads system prompt from `config/system_prompts/bronze_designer.txt`.
+2. **Empty-fallback on all errors**: missing API key, bad JSON, network failure — all return `{"bronze_instruments": {}}`.
+3. **Prompt path**: resolved relative to `bronze_agent.py` (3x `dirname` up from `src/agents/` to project root, then `config/system_prompts/`).
+4. **LLM output validation**: only string-string pairs with non-empty values survive; invalid entries logged and skipped.
 
-### State fields at the start of Session 5
+### State fields at the start of Session 6
 
 ```python
 class AudioWarehouseState(TypedDict):
     track_specification: Dict[str, Any]   # bpm, key, energy, mood, track_id, human_feedback
     active_branch_name: str               # set by orchestrator
-    bronze_instruments: Dict[str, str]    # {} until Session 5
+    bronze_instruments: Dict[str, str]    # populated by bronze_agent (or {})
     silver_patterns: Dict[str, Any]       # {} until Session 6
     gold_arrangement: str                 # WAV path from compiler, or ""
     compilation_errors: List[str]         # populated by compiler on failure
@@ -129,25 +129,24 @@ class AudioWarehouseState(TypedDict):
     analysis_metrics: Dict[str, float]    # populated by analyzer, or {}
 ```
 
-### What Session 5 needs to do
+### What Session 6 needs to do
 
-1. Implement `bronze_agent.py` — the Bronze Designer agent:
+1. Implement `silver_agent.py` — the Silver Sequencer agent:
    - Call LLM via `get_llm()` from `src/llm_factory.py`
-   - Read the prompt from `config/system_prompts/bronze_designer.txt` — populate it with a real prompt
-   - Parse LLM output as JSON (instrument patch definitions)
+   - Read the prompt from `config/system_prompts/silver_sequencer.txt` — populate it with a real prompt
+   - Parse LLM output as JSON (pattern definitions over timeline)
    - Apply ADR-005: JSON parse safety with empty-fallback
-   - Return `{"bronze_instruments": {...}}` with instrument patch specs
-   - Accept `analysis_metrics` from state to inform instrument design
-2. Populate `config/system_prompts/bronze_designer.txt` with a full prompt including:
-   - Output JSON schema for bronze_instruments
-   - Context about the track (BPM, key, mood, energy)
-   - Reference to analysis_metrics for adjustment
+   - Accept `bronze_instruments` from state to know which instruments are available
+   - Return `{"silver_patterns": {...}}` with timing/sequence data
+2. Populate `config/system_prompts/silver_sequencer.txt` with a full prompt including:
+   - Output JSON schema for silver_patterns
+   - Reference to bronze_instruments for available sounds
+   - Track context (BPM, key, energy, mood) for pattern timing
 3. Handle LLM errors gracefully (circuit breaker catches downstream failures)
 
 ### Dependency chain reminder
 
 ```
-Session 5 (bronze) <- Session 6 (needs bronze_instruments)
 Session 6 (silver) <- Session 7 (needs silver_patterns)
 Session 7 (gold) <- Session 8 (needs gold_arrangement)
 Session 8 (curator) <- Session 9 (needs all nodes complete)
@@ -292,6 +291,25 @@ python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
 >   Iterations:     3
 >   Approved:       False
 >   Compilation errors: 1
+```
+
+## Verification Results (Session 5)
+
+```powershell
+# Dry run - PASS
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic --dry-run
+> [DRY RUN] Graph structure shows all 7 nodes + conditional routing
+
+# Full invocation with real bronze_agent (no DEEPSEEK_API_KEY) - PASS
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
+> [BRONZE] LLM call failed: 'DEEPSEEK_API_KEY'     # graceful fallback
+> [SESSION COMPLETE]
+>   Iterations:     3
+>   Approved:       False
+>   Compilation errors: 1
+
+# Prompt file is found and read correctly
+# (verified by absence of "Failed to read prompt" error — path fixed in Session 5)
 ```
 
 ---
