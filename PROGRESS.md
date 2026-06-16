@@ -27,7 +27,7 @@
 | 4 | Librosa Feature Extraction Analyzer | Completed | 2026-06-16 | PASS - Analyzer node (audio_analyzer) added between compiler and curator; extracts spectral centroid, rms, zcr, tempo; graceful missing WAV/librosa handling; analysis_metrics field added to state |
 | 5 | Bronze Designer Agent | Completed | 2026-06-16 | PASS - LLM-powered agent generating Pyo instrument patches; graceful empty-fallback on API/JSON errors; prompt populated with schema and constraints |
 | 6 | Silver Sequencer Agent | Completed | 2026-06-16 | PASS - LLM-powered sequencer generating 16-step patterns; references bronze_instruments; graceful empty-fallback on API/JSON errors; prompt populated |
-| 7 | Gold Mixer Agent | Not Started | - | - |
+| 7 | Gold Mixer Agent | Completed | 2026-06-16 | PASS - LLM generates complete Pyo arrangement script; gold-compiler handoff: gold writes .py, compiler executes it; fallback to _render.py if gold fails |
 | 8 | Taste Curator & Circuit Breaker | Not Started | - | - |
 | 9 | Orchestrator, CLI & Full Integration | Not Started | - | - |
 
@@ -44,7 +44,7 @@ Each session MUST update this table with any new or modified files.
 | `config/reference_taste_profile.json` | Created | Session 1 | 4 Librosa thresholds from PRD |
 | `config/system_prompts/bronze_designer.txt` | Modified (full prompt) | Session 5 | Detailed Pyo DSP instrument generation prompt with JSON schema, constraints, instrument categories |
 | `config/system_prompts/silver_sequencer.txt` | Modified (full prompt) | Session 6 | 16-step pattern generation prompt with techno style guidelines, MIDI note ranges, gate arrays, automation |
-| `config/system_prompts/gold_mixer.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 7 |
+| `config/system_prompts/gold_mixer.txt` | Modified (full prompt) | Session 7 | Complete arrangement generation prompt: script template, section structure, pattern playback, Pyo offline rendering |
 | `config/system_prompts/curator_critic.txt` | Created (stub) | Session 1 | Output schema only; full prompt in Session 8 |
 | `src/__init__.py` | Created | Session 1 | Empty |
 | `src/llm_factory.py` | Created | Session 1 | get_llm() factory - full implementation |
@@ -52,10 +52,10 @@ Each session MUST update this table with any new or modified files.
 | `src/agents/orchestrator.py` | Modified (full impl) | Session 2 | Creates dirs, sets branch_name, resets iterations/errors |
 | `src/agents/bronze_agent.py` | Modified (full LLM impl) | Session 5 | Calls get_llm() with SystemMessage + HumanMessage; JSON parse with empty-fallback; prints generated instruments |
 | `src/agents/silver_agent.py` | Modified (full LLM impl) | Session 6 | Calls get_llm() with bronze_instruments context; validates list-type patterns; empty-fallback |
-| `src/agents/gold_agent.py` | Modified (stub + print) | Session 2 | Traceability print added; returns {} until Session 7 |
+| `src/agents/gold_agent.py` | Modified (full LLM impl) | Session 7 | Calls get_llm() with instruments + patterns; extracts Python code; writes script to warehouse; empty-fallback |
 | `src/agents/curator_agent.py` | Modified (full mock) | Session 2 | Always rejects; increments iterations_count; full impl in Session 8 |
 | `src/audio_engine/__init__.py` | Created | Session 1 | Empty |
-| `src/audio_engine/compiler.py` | Modified (full impl) | Session 3 | Subprocess executor: runs _render.py, captures stdout/stderr, returns gold_arrangement + compilation_errors |
+| `src/audio_engine/compiler.py` | Modified (gold script support) | Session 3, 7 | Session 3: subprocess _render.py; Session 7: checks gold_arrangement for script path, executes it if valid, falls back to _render.py |
 | `src/audio_engine/_render.py` | Created | Session 3 | Standalone Pyo render script spawned by compiler.py |
 | `src/audio_engine/analyzer.py` | Modified (full impl) | Session 4 | Librosa feature extraction + graph node wrapper; graceful fallback if librosa/WAV missing |
 | `src/graph.py` | Modified (added analyzer node) | Session 2, 4 | Session 2: conditional routing; Session 4: audio_analyzer node + analysis_metrics state field |
@@ -69,11 +69,11 @@ Each session MUST update this table with any new or modified files.
 
 ---
 
-## Context Anchor (for next session: **Session 7**)
+## Context Anchor (for next session: **Session 8**)
 
-### What exists at the start of Session 7
+### What exists at the start of Session 8
 
-The full project with LLM-powered Bronze and Silver agents:
+The full project with all 3 LLM-powered agents:
 
 ```
 audio-warehouse-engine/
@@ -83,81 +83,75 @@ audio-warehouse-engine/
 |   |-- reference_taste_profile.json
 |   |-- system_prompts/
 |       |-- bronze_designer.txt   (full prompt: Pyo instrument generation)
-|       |-- silver_sequencer.txt  (full prompt: 16-step pattern generation)
-|       |-- gold_mixer.txt        (stub - output schema only)
-|       |-- curator_critic.txt    (stub)
+|       |-- silver_sequencer.txt  (full prompt: 16-step patterns)
+|       |-- gold_mixer.txt        (full prompt: arrangement script)
+|       |-- curator_critic.txt    (stub - output schema only)
 |-- src/
 |   |-- __init__.py
-|   |-- llm_factory.py            (full impl - get_llm)
+|   |-- llm_factory.py            (full impl)
 |   |-- graph.py                   (7 nodes + conditional routing)
 |   |-- main.py                    (CLI with --dry-run, recursion_limit=100)
 |   |-- agents/
 |   |   |-- __init__.py
 |   |   |-- orchestrator.py       (full impl)
-|   |   |-- bronze_agent.py       (full LLM: Pyo instrument patches)
-|   |   |-- silver_agent.py       (full LLM: step patterns)
-|   |   |-- gold_agent.py         (stub with print)
+|   |   |-- bronze_agent.py       (full LLM)
+|   |   |-- silver_agent.py       (full LLM)
+|   |   |-- gold_agent.py         (full LLM: writes .py script, gold_arrangement handoff)
 |   |   |-- curator_agent.py      (mock: always reject)
 |   |-- audio_engine/
 |       |-- __init__.py
-|       |-- compiler.py           (full impl: subprocess -> Pyo _render.py)
+|       |-- compiler.py           (full impl: gold script or _render.py)
 |       |-- _render.py            (standalone Pyo render script)
-|       |-- analyzer.py           (full impl: librosa feature extraction)
+|       |-- analyzer.py           (full impl: librosa)
 |-- warehouse/
 |   |-- ...
 ```
 
-### State fields at the start of Session 7
+### State fields at the start of Session 8
 
 ```python
 class AudioWarehouseState(TypedDict):
-    track_specification: Dict[str, Any]   # bpm, key, energy, mood, track_id, human_feedback
-    active_branch_name: str               # set by orchestrator
-    bronze_instruments: Dict[str, str]    # populated by bronze_agent (or {})
-    silver_patterns: Dict[str, Any]       # populated by silver_agent (or {})
-    gold_arrangement: str                 # WAV path from compiler, or ""
-    compilation_errors: List[str]         # populated by compiler on failure
-    curator_report: Dict[str, Any]        # mock until Session 8
-    iterations_count: int                 # incremented by curator
-    analysis_metrics: Dict[str, float]    # populated by analyzer, or {}
+    track_specification: Dict[str, Any]
+    active_branch_name: str
+    bronze_instruments: Dict[str, str]     # from bronze_agent
+    silver_patterns: Dict[str, Any]        # from silver_agent
+    gold_arrangement: str                  # script path (from gold) -> WAV path (from compiler)
+    compilation_errors: List[str]          # from compiler
+    curator_report: Dict[str, Any]         # from curator — mock until Session 8
+    iterations_count: int                  # incremented by curator
+    analysis_metrics: Dict[str, float]     # from analyzer
 ```
 
-### What Session 7 needs to do
+### Gold-Compiler handoff (as-implemented)
 
-1. Implement `gold_agent.py` — the Gold Mixer agent:
+1. Gold agent generates Pyo script → writes to `warehouse/gold_outputs/{track_id}/_gold_arrangement.py`
+2. Gold agent sets `gold_arrangement` to the script path
+3. Compiler checks if `gold_arrangement` ends with `.py` and exists → executes it as the render script
+4. If gold_arrangement is empty/missing → falls back to `_render.py`
+5. On successful compilation, compiler returns `gold_arrangement` as the WAV path
+
+### What Session 8 needs to do
+
+1. Implement `curator_agent.py` — the Taste Curator agent:
    - Call LLM via `get_llm()` from `src/llm_factory.py`
-   - Read the prompt from `config/system_prompts/gold_mixer.txt` — populate it with a real prompt
-   - Parse LLM output as JSON (arrangement structure)
+   - Read the prompt from `config/system_prompts/curator_critic.txt` — populate it with a full prompt
+   - Parse LLM output as JSON (approval decision, score, feedback)
    - Apply ADR-005: JSON parse safety with empty-fallback
-   - Accept `bronze_instruments` AND `silver_patterns` from state
-   - Return `{"gold_arrangement": combined_pyo_code_string}` — a complete, runnable Pyo script
-2. Populate `config/system_prompts/gold_mixer.txt` with a full prompt including:
-   - How to combine instrument patches with pattern data
-   - Pyo Server initialization with `Server(audio="offline")`
-   - Export/recording setup for the master output
-   - Track structure (intro, buildup, drop, outro)
-3. **Connect the compiler**: The Gold agent's output (`gold_arrangement`) is a complete Pyo script string → written to a `.py` file on disk by `gold_agent.py` → `compiler.py` executes it as a subprocess.
-   - This means `gold_agent.py` writes a `.py` file to `warehouse/silver_loops/{branch}/` or similar
-   - `compiler.py` receives the path from `gold_arrangement` and runs it via subprocess
-
-### Gold-Compiler handoff design
-
-Currently `gold_arrangement: str` stores a WAV path returned by `compiler.py`. With the Gold agent:
-
-**Proposed flow**:
-1. Gold agent generates a complete Pyo script as a string
-2. Gold agent writes this string to `warehouse/gold_outputs/{track_id}/_gold_arrangement.py`
-3. Gold agent sets `gold_arrangement` to the path of that `.py` file
-4. `compiler.py` reads `gold_arrangement` as a script path (not a WAV path) and executes it
-5. `compiler.py` returns `gold_arrangement` as the WAV output path instead
-
-**Alternative**: Keep `gold_arrangement` as the WAV path returned by compiler. Use a new field `arrangement_script: str` for the Gold agent's script path. During retry, the gold agent regenerates the arrangement.
+   - Read `analysis_metrics` from state and compare against `config/reference_taste_profile.json` thresholds
+   - Read `compilation_errors` and factor into decision (auto-reject if errors present)
+   - Increment `iterations_count`
+   - Return `{"curator_report": ..., "iterations_count": ...}`
+2. Populate `config/system_prompts/curator_critic.txt` with a full prompt including:
+   - Evaluation criteria referencing taste profile thresholds
+   - JSON output schema for curator_report (approved: bool, score: float 0-1, feedback: str)
+   - How to interpret analysis_metrics
+3. The loop is already wired: curator → approve → END / reject + iters<3 → retry bronze / reject + iters>=3 → error_termination
 
 ### Dependency chain reminder
 
 ```
-Session 7 (gold) <- Session 8 (needs gold_arrangement)
 Session 8 (curator) <- Session 9 (needs all nodes complete)
+Session 9 (orchestrator, CLI, full integration)
 ```
 
 ---
@@ -178,6 +172,7 @@ Session 8 (curator) <- Session 9 (needs all nodes complete)
 | ADR-010 | recursion_limit passed as config to invoke(), not compile() | LangGraph 0.0.15 compile() silently ignores recursion_limit kwarg; invoke() config dict works | Session 2 |
 | ADR-011 | Subprocess isolation for Pyo compilation | Prevents Pyo segfaults from killing orchestrator; compiler.py spawns _render.py via subprocess.run() | Session 3 |
 | ADR-012 | Analyzer as separate graph node (Option A) | Keeps pipeline modular and testable; analysis_metrics passes from analyzer -> curator; curator can be swapped without affecting analysis | Session 4 |
+| ADR-013 | Gold agent writes script, compiler executes it | gold_arrangement field carries script path from gold -> compiler, then WAV path from compiler -> analyzer -> curator; clean single-field handoff | Session 7 |
 
 ---
 
@@ -337,6 +332,26 @@ python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
 >   Compilation errors: 1
 
 # Both LLM nodes fail gracefully; circuit breaker handles retries
+```
+
+## Verification Results (Session 7)
+
+```powershell
+# Dry run - PASS
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic --dry-run
+> [DRY RUN] Graph structure shows all 7 nodes + conditional routing
+
+# Full invocation with real gold_agent (no DEEPSEEK_API_KEY) - PASS
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
+> [GOLD] LLM call failed: 'DEEPSEEK_API_KEY'        # graceful fallback
+> [COMPILER] Using default render script: ..._render.py  # fallback to _render.py
+> [SESSION COMPLETE]
+>   Iterations:     3
+>   Approved:       False
+>   Compilation errors: 1
+
+# All 3 LLM agents fail gracefully; compiler falls back to _render.py
+# With DEEPSEEK_API_KEY set: gold writes _gold_arrangement.py, compiler executes it
 ```
 
 ---

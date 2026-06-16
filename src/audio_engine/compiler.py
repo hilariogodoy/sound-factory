@@ -9,30 +9,38 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
     track_spec = state.get("track_specification", {})
     track_id = track_spec.get("track_id", "track_001")
     branch_name = state.get("active_branch_name", track_id)
+    gold_arrangement = state.get("gold_arrangement", "")
 
     output_dir = os.path.join("warehouse", "gold_outputs", track_id)
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "master_output.wav")
+    output_wav = os.path.join(output_dir, "master_output.wav")
 
-    params = {
-        "bpm": track_spec.get("bpm", 133),
-        "key": track_spec.get("key", "A minor"),
-        "energy": track_spec.get("energy", 0.8),
-        "mood": track_spec.get("mood", "hypnotic"),
-        "output_path": output_path,
-        "branch_name": branch_name,
-    }
+    if gold_arrangement and gold_arrangement.endswith(".py") and os.path.exists(gold_arrangement):
+        render_script = gold_arrangement
+        params = {}
+        print(f"[COMPILER] Using Gold-generated script: {render_script}")
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        render_script = os.path.join(script_dir, "_render.py")
+        params = {
+            "bpm": track_spec.get("bpm", 133),
+            "key": track_spec.get("key", "A minor"),
+            "energy": track_spec.get("energy", 0.8),
+            "mood": track_spec.get("mood", "hypnotic"),
+            "output_path": output_wav,
+            "branch_name": branch_name,
+        }
+        print(f"[COMPILER] Using default render script: {render_script}")
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    render_script = os.path.join(script_dir, "_render.py")
-
-    print(f"[COMPILER] Compiling audio for branch '{branch_name}'")
-    print(f"[COMPILER] Render script: {render_script}")
-    print(f"[COMPILER] Output: {output_path}")
+    print(f"[COMPILER] Output: {output_wav}")
 
     try:
+        args = [sys.executable, render_script]
+        if params:
+            args.append(json.dumps(params))
+
         result = subprocess.run(
-            [sys.executable, render_script, json.dumps(params)],
+            args,
             capture_output=True,
             text=True,
             timeout=120,
@@ -53,12 +61,12 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
                 "gold_arrangement": "",
             }
 
-        if os.path.exists(output_path):
-            file_size = os.path.getsize(output_path)
+        if os.path.exists(output_wav):
+            file_size = os.path.getsize(output_wav)
             print(f"[COMPILER] WAV file created ({file_size} bytes)")
-            return {"gold_arrangement": output_path, "compilation_errors": []}
+            return {"gold_arrangement": output_wav, "compilation_errors": []}
         else:
-            msg = f"Output file not found: {output_path}"
+            msg = f"Output file not found: {output_wav}"
             print(f"[COMPILER] {msg}")
             return {"compilation_errors": [msg], "gold_arrangement": ""}
 
