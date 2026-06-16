@@ -24,7 +24,7 @@
 | 1 | Project Scaffold, State Types & LLM Factory | Completed | 2026-06-15 | PASS - All 6 nodes execute sequentially, graph terminates at END, dry-run works |
 | 2 | LangGraph State Machine with Mock Nodes | Completed | 2026-06-16 | PASS - Conditional routing with circuit breaker (3 iterations -> error_termination); approval path verified; orchestrator creates dirs and sets branch name |
 | 3 | Audio Compiler (Subprocess Executor) | Completed | 2026-06-16 | PASS - Subprocess isolation works; Pyo render script created; graceful error capture in compilation_errors; circuit breaker retries compiler failures |
-| 4 | Librosa Feature Extraction Analyzer | Not Started | - | - |
+| 4 | Librosa Feature Extraction Analyzer | Completed | 2026-06-16 | PASS - Analyzer node (audio_analyzer) added between compiler and curator; extracts spectral centroid, rms, zcr, tempo; graceful missing WAV/librosa handling; analysis_metrics field added to state |
 | 5 | Bronze Designer Agent | Not Started | - | - |
 | 6 | Silver Sequencer Agent | Not Started | - | - |
 | 7 | Gold Mixer Agent | Not Started | - | - |
@@ -57,9 +57,9 @@ Each session MUST update this table with any new or modified files.
 | `src/audio_engine/__init__.py` | Created | Session 1 | Empty |
 | `src/audio_engine/compiler.py` | Modified (full impl) | Session 3 | Subprocess executor: runs _render.py, captures stdout/stderr, returns gold_arrangement + compilation_errors |
 | `src/audio_engine/_render.py` | Created | Session 3 | Standalone Pyo render script spawned by compiler.py |
-| `src/audio_engine/analyzer.py` | Created (stub) | Session 1 | Returns {}; full impl in Session 4 |
-| `src/graph.py` | Modified (conditional routing) | Session 2 | add_conditional_edges + error_termination_node; circuit breaker at 3 iterations |
-| `src/main.py` | Modified (recursion_limit, dry-run text) | Session 2 | Passes recursion_limit=100 to invoke(); updated dry-run display |
+| `src/audio_engine/analyzer.py` | Modified (full impl) | Session 4 | Librosa feature extraction + graph node wrapper; graceful fallback if librosa/WAV missing |
+| `src/graph.py` | Modified (added analyzer node) | Session 2, 4 | Session 2: conditional routing; Session 4: audio_analyzer node + analysis_metrics state field |
+| `src/main.py` | Modified (analysis_metrics, dry-run) | Session 2, 4 | Session 2: recursion_limit; Session 4: analysis_metrics initial state + dry-run + output display |
 | `warehouse/bronze_patches/.gitkeep` | Created | Session 1 | Placeholder |
 | `warehouse/silver_loops/.gitkeep` | Created | Session 1 | Placeholder |
 | `warehouse/gold_outputs/track_001/json_manifest.json` | Created | Session 1 | Placeholder |
@@ -69,18 +69,18 @@ Each session MUST update this table with any new or modified files.
 
 ---
 
-## Context Anchor (for next session: **Session 4**)
+## Context Anchor (for next session: **Session 5**)
 
-### What exists at the start of Session 4
+### What exists at the start of Session 5
 
-The full project with subprocess audio compiler:
+The full project with analyzer node in the pipeline:
 
 ```
 audio-warehouse-engine/
 |-- requirements.txt
 |-- config/
 |   |-- llm_config.yaml
-|   |-- reference_taste_profile.json
+|   |-- reference_taste_profile.json   (4 metric thresholds for curator)
 |   |-- system_prompts/
 |       |-- bronze_designer.txt   (stub - output schema only)
 |       |-- silver_sequencer.txt  (stub)
@@ -89,81 +89,64 @@ audio-warehouse-engine/
 |-- src/
 |   |-- __init__.py
 |   |-- llm_factory.py            (full impl - get_llm)
-|   |-- graph.py                   (conditional routing + error_termination node)
-|   |-- main.py                    (CLI with --dry-run, recursion_limit=100)
+|   |-- graph.py                   (conditional routing + analyzer node + error_termination)
+|   |-- main.py                    (CLI with --dry-run, recursion_limit=100, analysis display)
 |   |-- agents/
 |   |   |-- __init__.py
 |   |   |-- orchestrator.py       (full impl)
 |   |   |-- bronze_agent.py       (stub with print)
 |   |   |-- silver_agent.py       (stub with print)
 |   |   |-- gold_agent.py         (stub with print)
-|   |   |-- curator_agent.py      (mock: always reject)
+|   |   |-- curator_agent.py      (mock: always reject — Session 8 will use real LLM)
 |   |-- audio_engine/
 |       |-- __init__.py
 |       |-- compiler.py           (full impl: subprocess -> Pyo _render.py)
 |       |-- _render.py            (standalone Pyo render script)
-|       |-- analyzer.py           (stub: returns {})
+|       |-- analyzer.py           (full impl: librosa feature extraction)
 |-- warehouse/
-|   |-- bronze_patches/
-|   |-- silver_loops/
-|   |-- gold_outputs/{track_id}/
-|       |-- json_manifest.json
-|       |-- failure_manifest.json (from circuit breaker)
+|   |-- ...
 ```
 
-### Key architectural notes from Session 3
+### Key architectural notes from Session 4
 
-1. **Subprocess isolation**: `compiler.py` spawns `_render.py` via `subprocess.run()` — Pyo crashes don't kill the orchestrator.
-2. **Render script**: `_render.py` accepts JSON params (BPM, key, energy, mood, output_path) via argv[1]; fails gracefully with ImportError if Pyo missing.
-3. **State flow**: compiler returns `{"gold_arrangement": wav_path}` on success or `{"compilation_errors": [msg], "gold_arrangement": ""}` on failure.
-4. **Python 3.10 required for Pyo**: `_render.py` uses `Server(audio="offline")`; `sys.executable` in compiler runs whatever Python is active.
+1. **Analyzer as separate node** (Option A): `audio_analyzer` node sits between `audio_compiler` and `taste_curator` in the graph.
+2. **State field**: `analysis_metrics: Dict[str, float]` added to `AudioWarehouseState` — stores spectral_centroid_mean/std, rms_mean/std/variance, zcr_mean, tempo_bpm, duration_sec.
+3. **Graceful degradation**: Missing WAV or librosa returns empty dict — graph continues without crash.
+4. **Pipeline flow**: `audio_compiler -> audio_analyzer -> taste_curator -> [conditional]`.
 
-### Exact signatures Session 4 must work with
+### State fields at the start of Session 5
 
 ```python
-# analyzer.py stub:
-def analyze_audio(wav_path: str) -> Dict[str, Any]:  # Session 4 implements this
-
-# compiler.py returns on success:
-{"gold_arrangement": "warehouse/gold_outputs/track_001/master_output.wav", "compilation_errors": []}
-# compiler.py returns on failure:
-{"gold_arrangement": "", "compilation_errors": ["Pyo not available: No module named 'pyo'"]}
-
-# graph.py node order:
-orchestrator -> bronze_designer -> silver_sequencer -> gold_mixer ->
-audio_compiler -> taste_curator -> [conditional] ->
-  approved -> END
-  rejected, iters<3 -> bronze_designer (retry)
-  rejected, iters>=3 -> error_termination -> END
+class AudioWarehouseState(TypedDict):
+    track_specification: Dict[str, Any]   # bpm, key, energy, mood, track_id, human_feedback
+    active_branch_name: str               # set by orchestrator
+    bronze_instruments: Dict[str, str]    # {} until Session 5
+    silver_patterns: Dict[str, Any]       # {} until Session 6
+    gold_arrangement: str                 # WAV path from compiler, or ""
+    compilation_errors: List[str]         # populated by compiler on failure
+    curator_report: Dict[str, Any]        # mock until Session 8
+    iterations_count: int                 # incremented by curator
+    analysis_metrics: Dict[str, float]    # populated by analyzer, or {}
 ```
 
-### What Session 4 needs to do
+### What Session 5 needs to do
 
-1. Implement `analyzer.py` — `analyze_audio(wav_path)` using Librosa to extract features:
-   - spectral_centroid_mean, spectral_centroid_std
-   - rms_mean, rms_std
-   - zero_crossing_rate_mean
-   - tempo (via onset correlation)
-2. The `AudioWarehouseState` has no `analysis_results` field — either add one to the TypedDict or incorporate results into `curator_report`. **Decision needed**: should the analyzer node run after compiler and before curator? If so, update graph.py.
-3. Handle missing WAV file gracefully (return empty dict / error state)
-4. Update graph.py to add the analyzer node between compiler and curator if the pipeline needs it
-5. Add ADR for the analysis fields and pipeline position
-6. Update `reference_taste_profile.json` usage if needed
-
-### Pipeline position decision needed
-
-The current state design has `analyze_audio(wav_path)` returning raw Librosa metrics. The architect must decide:
-
-**Option A**: Analyzer runs as a separate graph node (`audio_analyzer`) between compiler and curator. State gets a new field `analysis_metrics: Dict[str, float]`. Curator reads both `analysis_metrics` and `reference_taste_profile.json` to decide approval.
-
-**Option B**: Analyzer is called inside `curator_agent.py` directly. No new graph node needed. Curator calls `analyze_audio(wav_path)` and compares to thresholds.
-
-**Recommendation**: Option A (separate node) keeps the pipeline modular and testable. See ADR-012.
+1. Implement `bronze_agent.py` — the Bronze Designer agent:
+   - Call LLM via `get_llm()` from `src/llm_factory.py`
+   - Read the prompt from `config/system_prompts/bronze_designer.txt` — populate it with a real prompt
+   - Parse LLM output as JSON (instrument patch definitions)
+   - Apply ADR-005: JSON parse safety with empty-fallback
+   - Return `{"bronze_instruments": {...}}` with instrument patch specs
+   - Accept `analysis_metrics` from state to inform instrument design
+2. Populate `config/system_prompts/bronze_designer.txt` with a full prompt including:
+   - Output JSON schema for bronze_instruments
+   - Context about the track (BPM, key, mood, energy)
+   - Reference to analysis_metrics for adjustment
+3. Handle LLM errors gracefully (circuit breaker catches downstream failures)
 
 ### Dependency chain reminder
 
 ```
-Session 4 (analyzer) <- Session 5 (analyzer feeds curator which drives bronze)
 Session 5 (bronze) <- Session 6 (needs bronze_instruments)
 Session 6 (silver) <- Session 7 (needs silver_patterns)
 Session 7 (gold) <- Session 8 (needs gold_arrangement)
@@ -187,6 +170,7 @@ Session 8 (curator) <- Session 9 (needs all nodes complete)
 | ADR-009 | requirements.txt pinned for Python<3.13; runtime is Python 3.13 | numpy 1.24.3 and pyo 1.0.5 need older Python; use relaxed pinning for development | Session 1 |
 | ADR-010 | recursion_limit passed as config to invoke(), not compile() | LangGraph 0.0.15 compile() silently ignores recursion_limit kwarg; invoke() config dict works | Session 2 |
 | ADR-011 | Subprocess isolation for Pyo compilation | Prevents Pyo segfaults from killing orchestrator; compiler.py spawns _render.py via subprocess.run() | Session 3 |
+| ADR-012 | Analyzer as separate graph node (Option A) | Keeps pipeline modular and testable; analysis_metrics passes from analyzer -> curator; curator can be swapped without affecting analysis | Session 4 |
 
 ---
 
@@ -287,6 +271,27 @@ python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
 python -c "import json, subprocess, sys; subprocess.run([sys.executable, 'src/audio_engine/_render.py', json.dumps({'bpm':133,'key':'A minor','energy':0.8,'mood':'hypnotic','output_path':'test.wav'})])"
 > Pyo not available: No module named 'pyo'
 # (Expected: Pyo needs Python 3.10; on 3.10 this generates an actual WAV)
+```
+
+## Verification Results (Session 4)
+
+```powershell
+# Dry run - PASS (shows audio_analyzer in chain)
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic --dry-run
+> [DRY RUN] Graph structure:
+>   Primary: orchestrator -> bronze_designer -> silver_sequencer ->
+>            gold_mixer -> audio_compiler -> audio_analyzer ->
+>            taste_curator
+>   Conditional routing from taste_curator: ...
+
+# Full invocation with analyzer node - PASS
+python src/main.py --bpm 133 --key "A minor" --energy 0.8 --mood hypnotic
+> ... audio_compiler -> audio_analyzer -> taste_curator ...
+> [ANALYZER] Analyzing (no WAV)         # graceful no-WAV handling
+> [SESSION COMPLETE]
+>   Iterations:     3
+>   Approved:       False
+>   Compilation errors: 1
 ```
 
 ---

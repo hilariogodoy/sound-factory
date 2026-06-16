@@ -38,6 +38,7 @@ def build_initial_state(args: argparse.Namespace) -> AudioWarehouseState:
         "compilation_errors": [],
         "curator_report": {},
         "iterations_count": 0,
+        "analysis_metrics": {},
     }
 
 
@@ -48,7 +49,8 @@ def main() -> None:
     if args.dry_run:
         print("[DRY RUN] Graph structure:")
         print("  Primary: orchestrator -> bronze_designer -> silver_sequencer ->")
-        print("           gold_mixer -> audio_compiler -> taste_curator")
+        print("           gold_mixer -> audio_compiler -> audio_analyzer ->")
+        print("           taste_curator")
         print("  Conditional routing from taste_curator:")
         print("    - approved (score >= 0.7):         -> END")
         print("    - rejected (score < 0.7, iters<3): -> bronze_designer (retry)")
@@ -70,6 +72,12 @@ def main() -> None:
         print(f"  Approved:       {final_state.get('curator_report', {}).get('approved', 'N/A')}")
         print(f"  Score:          {final_state.get('curator_report', {}).get('score', 'N/A')}")
         print(f"  Compilation errors: {len(final_state.get('compilation_errors', []))}")
+        if final_state.get("analysis_metrics"):
+            m = final_state["analysis_metrics"]
+            print(f"  Tempo:          {m.get('tempo_bpm', 'N/A'):.1f} BPM")
+            print(f"  Centroid:       {m.get('spectral_centroid_mean', 0):.0f} Hz")
+            print(f"  RMS variance:   {m.get('rms_energy_variance', 0):.4f}")
+            print(f"  ZCR mean:       {m.get('zero_crossing_rate_mean', 0):.4f}")
         print(f"  Output:         warehouse/gold_outputs/{args.track_id}/master_output.wav")
     except Exception as e:
         print(f"[FATAL ERROR] {e}", file=sys.stderr)

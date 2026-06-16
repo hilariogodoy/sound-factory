@@ -9,6 +9,7 @@ from src.agents.silver_agent import silver_sequencer_node
 from src.agents.gold_agent import gold_mixer_node
 from src.agents.curator_agent import curator_node
 from src.audio_engine.compiler import execute_audio_compilation
+from src.audio_engine.analyzer import analyze_audio_node
 
 
 class AudioWarehouseState(TypedDict):
@@ -20,6 +21,7 @@ class AudioWarehouseState(TypedDict):
     compilation_errors: List[str]
     curator_report: Dict[str, Any]
     iterations_count: int
+    analysis_metrics: Dict[str, float]
 
 
 def decide_next_after_curator(
@@ -67,6 +69,7 @@ def build_graph() -> StateGraph:
     graph.add_node("silver_sequencer", silver_sequencer_node)
     graph.add_node("gold_mixer", gold_mixer_node)
     graph.add_node("audio_compiler", execute_audio_compilation)
+    graph.add_node("audio_analyzer", analyze_audio_node)
     graph.add_node("taste_curator", curator_node)
     graph.add_node("error_termination", error_termination_node)
 
@@ -76,7 +79,8 @@ def build_graph() -> StateGraph:
     graph.add_edge("bronze_designer", "silver_sequencer")
     graph.add_edge("silver_sequencer", "gold_mixer")
     graph.add_edge("gold_mixer", "audio_compiler")
-    graph.add_edge("audio_compiler", "taste_curator")
+    graph.add_edge("audio_compiler", "audio_analyzer")
+    graph.add_edge("audio_analyzer", "taste_curator")
 
     graph.add_conditional_edges(
         "taste_curator",

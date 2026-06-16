@@ -21,7 +21,7 @@ output_path = params["output_path"]
 branch_name = params.get("branch_name", "")
 
 try:
-    from pyo import Server, Sine, RCOsc, Saw, Mixer, Record
+    from pyo import Server, Sine, RCOsc, Mixer, Record
 
     s = Server(audio="offline").boot()
 
