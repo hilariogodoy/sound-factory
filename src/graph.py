@@ -1,4 +1,6 @@
-from typing import TypedDict, List, Dict, Any
+import json
+import os
+from typing import TypedDict, List, Dict, Any, Literal
 from langgraph.graph import StateGraph, END
 
 from src.agents.orchestrator import orchestrator_node
@@ -20,6 +22,43 @@ class AudioWarehouseState(TypedDict):
     iterations_count: int
 
 
+def decide_next_after_curator(
+    state: AudioWarehouseState,
+) -> Literal["bronze_designer", "error_termination", "__end__"]:
+    iterations = state.get("iterations_count", 0)
+    if iterations >= 3:
+        print(f"[ROUTER] iterations_count={iterations} >= 3 -> error_termination")
+        return "error_termination"
+    if state.get("curator_report", {}).get("approved", False):
+        print(f"[ROUTER] Curator approved -> END")
+        return END
+    print(f"[ROUTER] Curator rejected, iterations={iterations} -> retry bronze_designer")
+    return "bronze_designer"
+
+
+def error_termination_node(state: AudioWarehouseState) -> Dict[str, Any]:
+    track_spec = state.get("track_specification", {})
+    track_id = track_spec.get("track_id", "track_001")
+    manifest_dir = os.path.join("warehouse", "gold_outputs", track_id)
+    os.makedirs(manifest_dir, exist_ok=True)
+
+    manifest = {
+        "track_id": track_id,
+        "status": "failed",
+        "iterations_count": state.get("iterations_count", 0),
+        "compilation_errors": state.get("compilation_errors", []),
+        "curator_report": state.get("curator_report", {}),
+    }
+    manifest_path = os.path.join(manifest_dir, "failure_manifest.json")
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+    print(f"[ERROR_TERMINATION] Circuit breaker tripped after "
+          f"{state.get('iterations_count', 0)} iteration(s)")
+    print(f"[ERROR_TERMINATION] Failure manifest written to {manifest_path}")
+    return {}
+
+
 def build_graph() -> StateGraph:
     graph = StateGraph(AudioWarehouseState)
 
@@ -29,6 +68,7 @@ def build_graph() -> StateGraph:
     graph.add_node("gold_mixer", gold_mixer_node)
     graph.add_node("audio_compiler", execute_audio_compilation)
     graph.add_node("taste_curator", curator_node)
+    graph.add_node("error_termination", error_termination_node)
 
     graph.set_entry_point("orchestrator")
 
@@ -37,6 +77,17 @@ def build_graph() -> StateGraph:
     graph.add_edge("silver_sequencer", "gold_mixer")
     graph.add_edge("gold_mixer", "audio_compiler")
     graph.add_edge("audio_compiler", "taste_curator")
-    graph.add_edge("taste_curator", END)
+
+    graph.add_conditional_edges(
+        "taste_curator",
+        decide_next_after_curator,
+        {
+            "bronze_designer": "bronze_designer",
+            "error_termination": "error_termination",
+            END: END,
+        }
+    )
+
+    graph.add_edge("error_termination", END)
 
     return graph.compile()

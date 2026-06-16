@@ -46,25 +46,20 @@ def main() -> None:
     initial_state = build_initial_state(args)
 
     if args.dry_run:
-        node_sequence = [
-            "orchestrator",
-            "bronze_designer",
-            "silver_sequencer",
-            "gold_mixer",
-            "audio_compiler",
-            "taste_curator",
-            "conditional_edge",
-        ]
-        print("[DRY RUN] Node sequence that would execute:")
-        for i, node in enumerate(node_sequence, 1):
-            print(f"  {i}. {node}")
+        print("[DRY RUN] Graph structure:")
+        print("  Primary: orchestrator -> bronze_designer -> silver_sequencer ->")
+        print("           gold_mixer -> audio_compiler -> taste_curator")
+        print("  Conditional routing from taste_curator:")
+        print("    - approved (score >= 0.7):         -> END")
+        print("    - rejected (score < 0.7, iters<3): -> bronze_designer (retry)")
+        print("    - rejected (iters >= 3):           -> error_termination -> END")
         print("[DRY RUN] No LLM calls or compilation performed.")
         sys.exit(0)
 
     app = build_graph()
 
     try:
-        final_state = app.invoke(initial_state)
+        final_state = app.invoke(initial_state, {"recursion_limit": 100})
         print("\n[SESSION COMPLETE]")
         print(f"  Track ID:       {args.track_id}")
         print(f"  BPM:            {args.bpm}")

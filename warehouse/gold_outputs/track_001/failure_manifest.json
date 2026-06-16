@@ -1,0 +1,12 @@
+{
+  "track_id": "track_001",
+  "status": "failed",
+  "iterations_count": 3,
+  "compilation_errors": [],
+  "curator_report": {
+    "approved": false,
+    "score": 0.4,
+    "feedback": "Mock rejection \u2014 insufficient spectral variety and rhythmic drive.",
+    "iteration": 3
+  }
+}
