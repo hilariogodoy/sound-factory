@@ -39,8 +39,15 @@ def analyze_audio(wav_path: str) -> Dict[str, Any]:
         return {}
 
 
+def _get_wav_path(state):
+    track_spec = state.get("track_specification", {})
+    track_id = track_spec.get("track_id", "track_001")
+    output_root = track_spec.get("output_dir", "warehouse")
+    return os.path.join(output_root, "gold_outputs", track_id, "master_output.wav")
+
+
 def analyze_audio_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    wav_path = state.get("gold_arrangement", "")
+    wav_path = _get_wav_path(state)
     print(f"[ANALYZER] Analyzing {wav_path or '(no WAV)'}")
 
     if not wav_path:

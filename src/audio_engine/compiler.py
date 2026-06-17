@@ -33,7 +33,7 @@ def _fallback_render(state, output_wav, branch_name, track_spec):
             return {"compilation_errors": [msg], "gold_arrangement": ""}
         if os.path.exists(output_wav):
             print(f"[COMPILER] WAV file created ({os.path.getsize(output_wav)} bytes)")
-            return {"compilation_errors": []}
+            return {"gold_arrangement": output_wav, "compilation_errors": []}
         return {"compilation_errors": ["Fallback output not found"], "gold_arrangement": ""}
     except Exception as e:
         return {"compilation_errors": [f"Fallback failed: {e}"], "gold_arrangement": ""}

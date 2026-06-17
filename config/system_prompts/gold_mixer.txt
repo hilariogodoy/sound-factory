@@ -47,7 +47,8 @@ CRITICAL — PYO API CONSTRAINTS:
 - Example — Biquad: Biquad(source, freq=200, q=5)  NOT source.apply(Biquad, freq=200, q=5)
 - Example — Disto: Disto(source, drive=0.5)  NOT source.apply(Disto, drive=0.5)
 - .mix(2) is fine for stereo output.
-- Use only: Sine, RCOsc, Noise, Biquad, Disto, Freeverb, Mixer, Sig, Mul, Add
+- Mul and Add Pyo objects do NOT exist. Use Python's * and + operators: signal * 0.5, signal1 + signal2
+- Use only: Sine, RCOsc, Noise, Biquad, Disto, Freeverb, Mixer, Sig, Port, Osc, LFO, Metro, Counter, TrigEnv, TrigFunc, Mux, Select
 
 PATTERN PLAYBACK:
 For 16-step patterns at 16th-note resolution:
