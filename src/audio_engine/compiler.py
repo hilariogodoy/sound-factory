@@ -67,6 +67,8 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
         }
         print(f"[COMPILER] Using default render script: {render_script}")
 
+    if os.path.exists(output_wav):
+        os.remove(output_wav)
     print(f"[COMPILER] Output: {output_wav}")
 
     try:

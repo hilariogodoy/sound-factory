@@ -5,8 +5,18 @@
   "compilation_errors": [],
   "curator_report": {
     "approved": false,
-    "score": 0.0,
-    "feedback": "No audio analysis available \u2014 track could not be rendered.",
+    "score": 0.3,
+    "feedback": {
+      "bronze": "Tempo is far below required range; adjust BPM to 130-138.",
+      "silver": "Spectral centroid is too low; increase brightness to stay within 1200-2400.",
+      "gold": "RMS energy variance is too low; add more dynamic variation to meet 0.01-0.08."
+    },
+    "metrics": {
+      "tempo_bpm": 0.0,
+      "spectral_centroid_mean": 268.270201685645,
+      "rms_energy_variance": 1.1363679732312448e-05,
+      "zero_crossing_rate_mean": 0.011802879539695946
+    },
     "iteration": 3
   }
 }

@@ -55,7 +55,7 @@ def gold_mixer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=context)])
         content = response.content.strip()
 
-        match = re.search(r"```python\s*\n(.*?)\n```", content, re.DOTALL)
+        match = re.search(r"```(?:python)?\s*\n(.*?)```", content, re.DOTALL)
         if match:
             code = match.group(1).strip()
         elif "```" in content:
@@ -65,6 +65,10 @@ def gold_mixer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             code = code.strip()
         else:
             code = content
+
+        if not code or len(code) < 50:
+            print(f"[GOLD] LLM returned empty or trivial code — skipping script write")
+            return {"gold_arrangement": ""}
 
         os.makedirs(os.path.dirname(script_path), exist_ok=True)
         with open(script_path, "w") as f:
