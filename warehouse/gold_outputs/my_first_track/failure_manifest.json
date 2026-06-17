@@ -1,0 +1,12 @@
+{
+  "track_id": "my_first_track",
+  "status": "failed",
+  "iterations_count": 3,
+  "compilation_errors": [],
+  "curator_report": {
+    "approved": false,
+    "score": 0.0,
+    "feedback": "No audio analysis available \u2014 track could not be rendered.",
+    "iteration": 3
+  }
+}

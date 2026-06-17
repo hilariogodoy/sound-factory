@@ -78,5 +78,9 @@ def gold_mixer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[GOLD] LLM dependencies missing: {e}")
         return {"gold_arrangement": ""}
     except Exception as e:
-        print(f"[GOLD] LLM call failed: {e}")
+        err_msg = str(e)
+        for line in err_msg.splitlines():
+            if "sk-or-" in line or "api-key" in line.lower():
+                continue
+            print(f"[GOLD] LLM call failed: {line}")
         return {"gold_arrangement": ""}

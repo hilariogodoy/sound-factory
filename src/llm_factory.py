@@ -23,6 +23,7 @@ def get_llm(temperature: float = 0.5) -> BaseChatModel:
             model=pcfg["model"],
             api_key=os.environ[pcfg["api_key_env"]],
             temperature=temperature,
+            max_tokens=4000,
         )
         if "base_url" in pcfg:
             kwargs["base_url"] = pcfg["base_url"]

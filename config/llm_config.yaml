@@ -1,4 +1,4 @@
-provider: openai_compatible
+provider: openrouter
 
 openai:
   model: gpt-4o
@@ -14,6 +14,6 @@ openai_compatible:
   api_key_env: DEEPSEEK_API_KEY
 
 openrouter:
-  model: openai/gpt-4o-2024-11-20
+  model: openai/gpt-4o-mini
   base_url: https://openrouter.ai/api/v1
   api_key_env: OPENROUTER_API_KEY

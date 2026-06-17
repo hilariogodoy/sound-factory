@@ -70,5 +70,9 @@ def silver_sequencer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[SILVER] LLM dependencies missing: {e}")
         return {"silver_patterns": {}}
     except Exception as e:
-        print(f"[SILVER] LLM call failed: {e}")
+        err_msg = str(e)
+        for line in err_msg.splitlines():
+            if "sk-or-" in line or "api-key" in line.lower():
+                continue
+            print(f"[SILVER] LLM call failed: {line}")
         return {"silver_patterns": {}}

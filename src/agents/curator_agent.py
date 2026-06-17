@@ -112,7 +112,11 @@ def curator_node(state: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[CURATOR] LLM dependencies missing: {e}")
         return _fallback_evaluation(analysis, taste_profile, iterations)
     except Exception as e:
-        print(f"[CURATOR] LLM call failed: {e}")
+        err_msg = str(e)
+        for line in err_msg.splitlines():
+            if "sk-or-" in line or "api-key" in line.lower():
+                continue
+            print(f"[CURATOR] LLM call failed: {line}")
         return _fallback_evaluation(analysis, taste_profile, iterations)
 
 
