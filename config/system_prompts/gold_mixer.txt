@@ -41,14 +41,54 @@ OUTPUT:
 - Then s.stop() and s.shutdown()
 
 CRITICAL — PYO API CONSTRAINTS:
-- Pyo 1.0.5 does NOT have an .apply() method on any object.
-- BAN: source.apply(Filter, ...) — this will crash with AttributeError.
-- CORRECT: Filter(source, ...) — pass the source as the first argument.
-- Example — Biquad: Biquad(source, freq=200, q=5)  NOT source.apply(Biquad, freq=200, q=5)
-- Example — Disto: Disto(source, drive=0.5)  NOT source.apply(Disto, drive=0.5)
-- .mix(2) is fine for stereo output.
-- Mul and Add Pyo objects do NOT exist. Use Python's * and + operators: signal * 0.5, signal1 + signal2
-- Use only: Sine, RCOsc, Noise, Biquad, Disto, Freeverb, Mixer, Sig, Port, Osc, LFO, Metro, Counter, TrigEnv, TrigFunc, Mux, Select
+- Pyo 1.0.5 does NOT have .apply(). Use: Filter(source, ...) not source.apply(Filter, ...)
+- RCOsc() does NOT take a table= argument. RCOsc(freq, mul) only.
+- For wavetables use Osc(table=SawTable(), freq=40, mul=0.1)
+- Mul and Add do NOT exist. Use Python * and +: signal * 0.5, sig1 + sig2
+- .mix(2) is fine for stereo.
+- Safe objects: Sine, RCOsc, Noise, Biquad, Disto, Freeverb, Mixer, Sig, Osc, SawTable, LFO
+
+WORKING TEMPLATE — follow this structure exactly. Replace INSTRUMENTS_GO_HERE and PATTERNS_GO_HERE with the provided data:
+```python
+from pyo import *
+import time
+
+s = Server(audio="offline").boot()
+beat_dur = 60.0 / BPM  # BPM from track context
+total_beats = 128
+total_dur = total_beats * beat_dur
+WAV = r"OUTPUT_WAV_PATH_GOES_HERE"
+s.recordOptions(dur=total_dur, filename=WAV, fileformat=0, sampletype=1)
+
+# Instruments
+INSTRUMENTS_GO_HERE
+
+# Patterns
+PATTERNS_GO_HERE
+
+step_dur = beat_dur / 4
+def play(inst, pat):
+    for g in pat:
+        if g > 0: inst.out()
+        time.sleep(step_dur)
+
+s.start()
+for section, insts, reps in [
+    ("Intro", [hihat], 16),
+    ("Build", [kick, hihat], 16),
+    ("Drop", [kick, hihat, clap, pad], 32),
+    ("Break", [hihat, pad], 16),
+    ("Drop2", [kick, hihat, clap, pad], 32),
+    ("Outro", [hihat, pad], 16),
+]:
+    for _ in range(reps):
+        for inst in insts:
+            play(inst, kick_pat if inst == kick else hat_pat)
+
+time.sleep(total_dur + 1)
+s.stop(); s.shutdown()
+```
+IMPORTANT: Only use Sine, Noise, RCOsc (no table= arg), Biquad(source,...), Disto(source,...). No .apply(). No Mul(). No Add().
 
 PATTERN PLAYBACK:
 For 16-step patterns at 16th-note resolution:
