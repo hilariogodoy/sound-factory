@@ -15,9 +15,10 @@ def gold_mixer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     patterns = state.get("silver_patterns", {})
     branch = state.get("active_branch_name", "N/A")
     track_id = track_spec.get("track_id", "track_001")
+    output_root = track_spec.get("output_dir", "warehouse")
 
-    output_wav = os.path.join("warehouse", "gold_outputs", track_id, "master_output.wav")
-    script_path = os.path.join("warehouse", "gold_outputs", track_id, "_gold_arrangement.py")
+    output_wav = os.path.join(output_root, "gold_outputs", track_id, "master_output.wav")
+    script_path = os.path.join(output_root, "gold_outputs", track_id, "_gold_arrangement.py")
 
     print(f"[GOLD] Mixing arrangement for branch '{branch}'")
 

@@ -17,7 +17,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mood", type=str, default="hypnotic", help="Mood descriptor (default: hypnotic)")
     parser.add_argument("--track-id", type=str, default="track_001", help="Track identifier (default: track_001)")
     parser.add_argument("--human-feedback", type=str, default="", help="Human feedback for retry")
-    parser.add_argument("--dry-run", action="store_true", help="Print node sequence without invoking")
+    parser.add_argument("--output-dir", type=str, default="warehouse", help="Output directory root (default: warehouse)")
+    parser.add_argument("--verbose", action="store_true", help="Enable detailed per-node logging")
+    parser.add_argument("--dry-run", action="store_true", help="Print graph structure without invoking")
     return parser.parse_args()
 
 
@@ -30,6 +32,8 @@ def build_initial_state(args: argparse.Namespace) -> AudioWarehouseState:
             "mood": args.mood,
             "track_id": args.track_id,
             "human_feedback": args.human_feedback,
+            "output_dir": args.output_dir,
+            "verbose": args.verbose,
         },
         "active_branch_name": "",
         "bronze_instruments": {},
@@ -47,14 +51,30 @@ def main() -> None:
     initial_state = build_initial_state(args)
 
     if args.dry_run:
-        print("[DRY RUN] Graph structure:")
-        print("  Primary: orchestrator -> bronze_designer -> silver_sequencer ->")
-        print("           gold_mixer -> audio_compiler -> audio_analyzer ->")
-        print("           taste_curator")
+        print("[DRY RUN] Audio Warehouse Engine — Pipeline Structure")
+        print("")
+        print("  8 Nodes:")
+        print("    orchestrator: create dirs, set branch name")
+        print("    bronze_designer: LLM generates Pyo instrument patches")
+        print("    silver_sequencer: LLM generates 16-step patterns")
+        print("    gold_mixer: LLM generates complete arrangement script")
+        print("    audio_compiler: subprocess executes script -> WAV")
+        print("    audio_analyzer: librosa extracts audio metrics")
+        print("    taste_curator: LLM evaluates metrics vs taste profile")
+        print("    error_termination: writes failure manifest")
+        print("")
+        print("  Graph Flow:")
+        print("    orchestrator -> bronze_designer -> silver_sequencer ->")
+        print("    gold_mixer -> audio_compiler -> audio_analyzer ->")
+        print("    taste_curator")
+        print("")
         print("  Conditional routing from taste_curator:")
         print("    - approved (score >= 0.7):         -> END")
         print("    - rejected (score < 0.7, iters<3): -> bronze_designer (retry)")
         print("    - rejected (iters >= 3):           -> error_termination -> END")
+        print("")
+        print(f"  Output dir:     {args.output_dir}")
+        print(f"  Verbose:        {args.verbose}")
         print("[DRY RUN] No LLM calls or compilation performed.")
         sys.exit(0)
 
@@ -62,6 +82,7 @@ def main() -> None:
 
     try:
         final_state = app.invoke(initial_state, {"recursion_limit": 100})
+        output_dir = args.output_dir
         print("\n[SESSION COMPLETE]")
         print(f"  Track ID:       {args.track_id}")
         print(f"  BPM:            {args.bpm}")
@@ -78,7 +99,7 @@ def main() -> None:
             print(f"  Centroid:       {m.get('spectral_centroid_mean', 0):.0f} Hz")
             print(f"  RMS variance:   {m.get('rms_energy_variance', 0):.4f}")
             print(f"  ZCR mean:       {m.get('zero_crossing_rate_mean', 0):.4f}")
-        print(f"  Output:         warehouse/gold_outputs/{args.track_id}/master_output.wav")
+        print(f"  Output:         {output_dir}/gold_outputs/{args.track_id}/master_output.wav")
     except Exception as e:
         print(f"[FATAL ERROR] {e}", file=sys.stderr)
         sys.exit(1)

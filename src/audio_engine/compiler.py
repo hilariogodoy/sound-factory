@@ -10,8 +10,9 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
     track_id = track_spec.get("track_id", "track_001")
     branch_name = state.get("active_branch_name", track_id)
     gold_arrangement = state.get("gold_arrangement", "")
+    output_root = track_spec.get("output_dir", "warehouse")
 
-    output_dir = os.path.join("warehouse", "gold_outputs", track_id)
+    output_dir = os.path.join(output_root, "gold_outputs", track_id)
     os.makedirs(output_dir, exist_ok=True)
     output_wav = os.path.join(output_dir, "master_output.wav")
 

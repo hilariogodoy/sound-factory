@@ -7,8 +7,8 @@
   ],
   "curator_report": {
     "approved": false,
-    "score": 0.4,
-    "feedback": "Mock rejection \u2014 insufficient spectral variety and rhythmic drive.",
+    "score": 0.0,
+    "feedback": "Compilation errors: Pyo not available: No module named 'pyo'",
     "iteration": 3
   }
 }

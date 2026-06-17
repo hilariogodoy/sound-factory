@@ -6,12 +6,13 @@ from typing import Dict, Any
 def orchestrator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     track_spec = state.get("track_specification", {})
     track_id = track_spec.get("track_id", "track_001")
+    output_dir = track_spec.get("output_dir", "warehouse")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     branch_name = f"{track_id}_{timestamp}"
-    bronze_dir = os.path.join("warehouse", "bronze_patches", branch_name)
-    silver_dir = os.path.join("warehouse", "silver_loops", branch_name)
-    gold_dir = os.path.join("warehouse", "gold_outputs", track_id)
+    bronze_dir = os.path.join(output_dir, "bronze_patches", branch_name)
+    silver_dir = os.path.join(output_dir, "silver_loops", branch_name)
+    gold_dir = os.path.join(output_dir, "gold_outputs", track_id)
 
     for d in [bronze_dir, silver_dir, gold_dir]:
         os.makedirs(d, exist_ok=True)

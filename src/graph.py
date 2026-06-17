@@ -41,7 +41,8 @@ def decide_next_after_curator(
 def error_termination_node(state: AudioWarehouseState) -> Dict[str, Any]:
     track_spec = state.get("track_specification", {})
     track_id = track_spec.get("track_id", "track_001")
-    manifest_dir = os.path.join("warehouse", "gold_outputs", track_id)
+    output_root = track_spec.get("output_dir", "warehouse")
+    manifest_dir = os.path.join(output_root, "gold_outputs", track_id)
     os.makedirs(manifest_dir, exist_ok=True)
 
     manifest = {
