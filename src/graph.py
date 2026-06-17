@@ -7,7 +7,7 @@ from src.agents.orchestrator import orchestrator_node
 from src.agents.bronze_agent import bronze_designer_node
 from src.agents.silver_agent import silver_sequencer_node
 from src.agents.gold_agent import gold_mixer_node
-from src.agents.curator_agent import curator_node
+# from src.agents.curator_agent import curator_node  # commented out by bypass-curator plan
 from src.audio_engine.compiler import execute_audio_compilation
 from src.audio_engine.analyzer import analyze_audio_node
 
@@ -24,42 +24,46 @@ class AudioWarehouseState(TypedDict):
     analysis_metrics: Dict[str, float]
 
 
-def decide_next_after_curator(
-    state: AudioWarehouseState,
-) -> Literal["bronze_designer", "error_termination", "__end__"]:
-    iterations = state.get("iterations_count", 0)
-    if iterations >= 3:
-        print(f"[ROUTER] iterations_count={iterations} >= 3 -> error_termination")
-        return "error_termination"
-    if state.get("curator_report", {}).get("approved", False):
-        print(f"[ROUTER] Curator approved -> END")
-        return END
-    print(f"[ROUTER] Curator rejected, iterations={iterations} -> retry bronze_designer")
-    return "bronze_designer"
+# === BYPASS-CURATOR: decide_next_after_curator commented out ===
+# def decide_next_after_curator(
+#     state: AudioWarehouseState,
+# ) -> Literal["bronze_designer", "error_termination", "__end__"]:
+#     iterations = state.get("iterations_count", 0)
+#     if iterations >= 3:
+#         print(f"[ROUTER] iterations_count={iterations} >= 3 -> error_termination")
+#         return "error_termination"
+#     if state.get("curator_report", {}).get("approved", False):
+#         print(f"[ROUTER] Curator approved -> END")
+#         return END
+#     print(f"[ROUTER] Curator rejected, iterations={iterations} -> retry bronze_designer")
+#     return "bronze_designer"
+# === end bypass-curator ===
 
 
-def error_termination_node(state: AudioWarehouseState) -> Dict[str, Any]:
-    track_spec = state.get("track_specification", {})
-    track_id = track_spec.get("track_id", "track_001")
-    output_root = track_spec.get("output_dir", "warehouse")
-    manifest_dir = os.path.join(output_root, "gold_outputs", track_id)
-    os.makedirs(manifest_dir, exist_ok=True)
-
-    manifest = {
-        "track_id": track_id,
-        "status": "failed",
-        "iterations_count": state.get("iterations_count", 0),
-        "compilation_errors": state.get("compilation_errors", []),
-        "curator_report": state.get("curator_report", {}),
-    }
-    manifest_path = os.path.join(manifest_dir, "failure_manifest.json")
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-
-    print(f"[ERROR_TERMINATION] Circuit breaker tripped after "
-          f"{state.get('iterations_count', 0)} iteration(s)")
-    print(f"[ERROR_TERMINATION] Failure manifest written to {manifest_path}")
-    return {}
+# === BYPASS-CURATOR: error_termination_node commented out ===
+# def error_termination_node(state: AudioWarehouseState) -> Dict[str, Any]:
+#     track_spec = state.get("track_specification", {})
+#     track_id = track_spec.get("track_id", "track_001")
+#     output_root = track_spec.get("output_dir", "warehouse")
+#     manifest_dir = os.path.join(output_root, "gold_outputs", track_id)
+#     os.makedirs(manifest_dir, exist_ok=True)
+#
+#     manifest = {
+#         "track_id": track_id,
+#         "status": "failed",
+#         "iterations_count": state.get("iterations_count", 0),
+#         "compilation_errors": state.get("compilation_errors", []),
+#         "curator_report": state.get("curator_report", {}),
+#     }
+#     manifest_path = os.path.join(manifest_dir, "failure_manifest.json")
+#     with open(manifest_path, "w") as f:
+#         json.dump(manifest, f, indent=2)
+#
+#     print(f"[ERROR_TERMINATION] Circuit breaker tripped after "
+#           f"{state.get('iterations_count', 0)} iteration(s)")
+#     print(f"[ERROR_TERMINATION] Failure manifest written to {manifest_path}")
+#     return {}
+# === end bypass-curator ===
 
 
 def build_graph() -> StateGraph:
@@ -71,8 +75,8 @@ def build_graph() -> StateGraph:
     graph.add_node("gold_mixer", gold_mixer_node)
     graph.add_node("audio_compiler", execute_audio_compilation)
     graph.add_node("audio_analyzer", analyze_audio_node)
-    graph.add_node("taste_curator", curator_node)
-    graph.add_node("error_termination", error_termination_node)
+    # graph.add_node("taste_curator", curator_node)          # bypass-curator
+    # graph.add_node("error_termination", error_termination_node)  # bypass-curator
 
     graph.set_entry_point("orchestrator")
 
@@ -81,18 +85,20 @@ def build_graph() -> StateGraph:
     graph.add_edge("silver_sequencer", "gold_mixer")
     graph.add_edge("gold_mixer", "audio_compiler")
     graph.add_edge("audio_compiler", "audio_analyzer")
-    graph.add_edge("audio_analyzer", "taste_curator")
+    graph.add_edge("audio_analyzer", END)    # bypass-curator: was "taste_curator"
 
-    graph.add_conditional_edges(
-        "taste_curator",
-        decide_next_after_curator,
-        {
-            "bronze_designer": "bronze_designer",
-            "error_termination": "error_termination",
-            END: END,
-        }
-    )
-
-    graph.add_edge("error_termination", END)
+    # === BYPASS-CURATOR: conditional edges commented out ===
+    # graph.add_conditional_edges(
+    #     "taste_curator",
+    #     decide_next_after_curator,
+    #     {
+    #         "bronze_designer": "bronze_designer",
+    #         "error_termination": "error_termination",
+    #         END: END,
+    #     }
+    # )
+    #
+    # graph.add_edge("error_termination", END)
+    # === end bypass-curator ===
 
     return graph.compile()
