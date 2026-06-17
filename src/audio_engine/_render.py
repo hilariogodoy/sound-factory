@@ -26,7 +26,7 @@ try:
     s = Server(audio="offline").boot()
 
     beat_dur = 60.0 / bpm
-    total_beats = 8
+    total_beats = 64
     total_dur = total_beats * beat_dur
 
     freq_map = {

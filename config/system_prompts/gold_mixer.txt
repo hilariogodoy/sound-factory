@@ -40,6 +40,15 @@ OUTPUT:
 - After s.start(), use time.sleep(total_dur) to render
 - Then s.stop() and s.shutdown()
 
+CRITICAL — PYO API CONSTRAINTS:
+- Pyo 1.0.5 does NOT have an .apply() method on any object.
+- BAN: source.apply(Filter, ...) — this will crash with AttributeError.
+- CORRECT: Filter(source, ...) — pass the source as the first argument.
+- Example — Biquad: Biquad(source, freq=200, q=5)  NOT source.apply(Biquad, freq=200, q=5)
+- Example — Disto: Disto(source, drive=0.5)  NOT source.apply(Disto, drive=0.5)
+- .mix(2) is fine for stereo output.
+- Use only: Sine, RCOsc, Noise, Biquad, Disto, Freeverb, Mixer, Sig, Mul, Add
+
 PATTERN PLAYBACK:
 For 16-step patterns at 16th-note resolution:
 - step_dur = beat_dur / 4
