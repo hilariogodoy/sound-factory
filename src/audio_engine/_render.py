@@ -83,16 +83,8 @@ try:
     bass_trig = TrigFunc(metro, function=bass_callback)
 
     # --- Output mix ---
-    mixer = Mixer(outs=2, chnls=4)
-    mixer.addInput(0, kick_sig)
-    mixer.addInput(1, hat_sig)
-    mixer.addInput(2, bass_filt)
-    mixer.addInput(3, pad)
-    mixer.setAmp(0, 0, 0.7, 1, 0.7)
-    mixer.setAmp(1, 0, 0.5, 1, 0.5)
-    mixer.setAmp(2, 0, 0.6, 1, 0.6)
-    mixer.setAmp(3, 0, 0.4, 1, 0.4)
-    stereo_out = mixer[0].out()
+    master = (kick_sig * 0.7 + hat_sig * 0.5 + bass_filt * 0.6 + pad * 0.4)
+    master_mix = master.mix(2).out()
 
     s.recordOptions(dur=total_dur, filename=output_path, fileformat=0, sampletype=1)
     s.start()
