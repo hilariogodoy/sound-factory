@@ -20,7 +20,7 @@ def _fallback_render(state, output_wav, branch_name, track_spec):
     try:
         result = subprocess.run(
             [sys.executable, render_script, json.dumps(params)],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=300,
         )
         if result.stdout:
             for line in result.stdout.strip().splitlines():
@@ -32,7 +32,8 @@ def _fallback_render(state, output_wav, branch_name, track_spec):
             msg = result.stderr.strip() or f"Fallback failed with code {result.returncode}"
             return {"compilation_errors": [msg], "gold_arrangement": ""}
         if os.path.exists(output_wav):
-            print(f"[COMPILER] WAV file created ({os.path.getsize(output_wav)} bytes)")
+            size = os.path.getsize(output_wav)
+            print(f"[COMPILER] WAV file created ({size} bytes)")
             return {"gold_arrangement": output_wav, "compilation_errors": []}
         return {"compilation_errors": ["Fallback output not found"], "gold_arrangement": ""}
     except Exception as e:
@@ -80,7 +81,7 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
             args,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
         )
 
         if result.stdout:
@@ -111,7 +112,7 @@ def execute_audio_compilation(state: Dict[str, Any]) -> Dict[str, Any]:
             return {"compilation_errors": [msg], "gold_arrangement": ""}
 
     except subprocess.TimeoutExpired:
-        msg = "Audio compilation timed out after 120s"
+        msg = "Audio compilation timed out after 300s"
         print(f"[COMPILER] {msg}")
         if gold_arrangement and gold_arrangement.endswith(".py") and os.path.exists(gold_arrangement):
             print(f"[COMPILER] Gold script failed — falling back to default render")
